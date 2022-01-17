@@ -1,6 +1,7 @@
 #ifndef GPRUSAK_LEX_H_
 #define GPRUSAK_LEX_H_
 
+#include <compare>
 #include "gprusak/types.h"
 
 namespace gprusak {

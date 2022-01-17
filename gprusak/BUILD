@@ -14,6 +14,7 @@ cc_library(
     name = "utils",
     hdrs = [
         "bazel.h",
+        "digits.h",
         "log.h",
         "read_file.h",
         "short.h",
@@ -27,6 +28,15 @@ cc_library(
         "typeset.h",
     ],
     srcs = ["log.cc"],
+)
+
+cc_test(
+  name = "utils_test",
+  srcs = ["utils_test.cc"],
+  deps = [
+    ":utils",
+    "@gtest//:gtest_main",
+  ],
 )
 
 cc_library(
