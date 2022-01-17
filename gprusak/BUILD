@@ -18,7 +18,13 @@ cc_library(
         "read_file.h",
         "short.h",
         "string.h",
+        "utf.h",
         "types.h",
+        "errors.h",
+        "geom.h",
+        "lex.h",
+        "exec.h",
+        "typeset.h",
     ],
     srcs = ["log.cc"],
 )
@@ -29,7 +35,6 @@ cc_library(
     deps = [
       ":utils",
       "@abseil//absl/time:time",
-      "@abseil//absl/types:optional",
     ],
 )
 
@@ -65,4 +70,32 @@ cc_test(
         ":enum_flag",
         "@gtest//:gtest_main",
     ],
+)
+
+cc_test(
+  name = "utf_test",
+  srcs = ["utf_test.cc"],
+  deps = [
+    ":utils",
+    "@gtest//:gtest_main",
+  ],
+)
+
+cc_test(
+  name = "errors_test",
+  srcs = ["errors_test.cc"],
+  deps = [
+    ":utils",
+    "@gtest//:gtest_main",
+  ],
+)
+
+cc_binary(
+  name = "embed",
+  srcs = ["embed.cc"],
+  deps = [
+    ":utils",
+    "@abseil//absl/flags:flag",
+    "@abseil//absl/flags:parse",
+  ],
 )

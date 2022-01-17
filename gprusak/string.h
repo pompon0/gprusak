@@ -6,14 +6,10 @@
 
 namespace gprusak {
   
-inline str to_str(const Bytes &d){ return str(d.begin(),d.end()); }
-inline Bytes to_bytes(const str &s){ return Bytes(s.begin(),s.end()); }
-
-inline bool has(char c, const str &s)
+INL inline bool has(char c, const str &s)
 { for(char x : s) if(x==c) return 1; return 0; }
 
-inline vec<str> split(const str &s, const str &sep = " \t\n\r\v")
-{
+inline vec<str> split(const str &s, const str &sep = " \t\n\r\v") {
   vec<str> out;
   size_t i=0;
   for(size_t j=0; j<s.size(); ++j) if(has(s[j],sep))
@@ -22,24 +18,25 @@ inline vec<str> split(const str &s, const str &sep = " \t\n\r\v")
   return out;
 }
 
-inline vec<str> strip(vec<str> v)
-{
+inline vec<str> strip(vec<str> v) {
   size_t i = 0;
   for(str &s : v) if(s.size()) v[i++].swap(s);
   v.resize(i);
   return v;
 }
 
-static str join(str sep, const vec<str> &A)
-{
+inline str join(str sep, const vec<str> &A) {
   if(!A.size()) return "";
   str r = A[0];
   for(size_t i=1; i<A.size(); ++i) r += sep+A[i];
   return r;
 }
 
-template<typename T> inline str to_str(const T &v)
+template<typename T> INL inline str to_str(const T &v)
 { std::stringstream ss; ss << v; return ss.str(); }
+
+template<> INL inline str to_str(const int8_t &v){ return to_str(int16_t(v)); }
+template<> INL inline str to_str(const uint8_t &v){ return to_str(int16_t(v)); }
 
 template<typename ...Args> str fmt(const str &format_str, Args ...args)
 {

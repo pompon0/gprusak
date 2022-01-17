@@ -7,8 +7,8 @@
 #include <set>
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "absl/types/optional.h"
 #include "gprusak/log.h"
+#include "gprusak/types.h"
 
 namespace gprusak {
 
@@ -27,7 +27,7 @@ struct Ctx {
     return std::make_tuple(ctx,[ctx]{ ctx->cancel(); });
   }
   static Ptr with_timeout(Ptr base, absl::Duration timeout);
-  virtual absl::optional<absl::Time> get_deadline() {
+  virtual opt<absl::Time> get_deadline() {
     if(base) return base->get_deadline();
     return {};
   }
@@ -66,7 +66,7 @@ struct CtxWithTimeout : Ctx {
       cancel();
     });
   }
-  virtual absl::optional<absl::Time> get_deadline() override {
+  virtual opt<absl::Time> get_deadline() override {
     //TODO: fix situation when parent deadline is shorter
     return deadline;
   }

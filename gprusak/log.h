@@ -17,8 +17,6 @@
 #include <x86intrin.h>
 #include <map>
 
-#define INL [[gnu::always_inline]]
-#define INLL __attribute__((always_inline))
 namespace gprusak {
 
 struct Logger {
