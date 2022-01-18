@@ -33,14 +33,21 @@ template<typename T> using opt = std::optional<T>;
 template<typename T> INL static opt<T> just(const T &v){ return opt<T>(v); }
 
 struct Nil {
-  template<typename T> INL operator ptr<T>(){ return {}; }
-  template<typename T> INL operator opt<T>(){ return {}; }
+  template<typename T> INL operator ptr<T>() const { return {}; }
+  template<typename T> INL operator opt<T>() const { return {}; }
 };
 
 constexpr Nil nil;
 
 template<typename F> struct Defer { F f; ~Defer(){ f(); } };
 template<typename F> INL static Defer<F> defer(F f) { return {f}; }
+
+// function signature static comparison 
+template<typename F> struct _sig : _sig<decltype(&F::operator())> {};
+template<typename F, typename Ret, typename ...Args> struct _sig<Ret(F::*)(Args...) const> { using value = Ret(Args...); };
+
+template<typename F> using sig = typename _sig<F>::value;
+template<typename F, typename Sig> constexpr bool has_sig = std::is_same<sig<F>,Sig>::value;
 
 } // namespace gprusak::types
 

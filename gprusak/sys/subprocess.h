@@ -8,67 +8,17 @@
 
 #include "gprusak/log.h"
 #include "gprusak/ctx.h"
+#include "gprusak/sys/raw.h"
 
 namespace gprusak::sys {
 
-// TODO: consider making these shared/unique pointers, so that system resources
-// are not leaked. It has to cooperate well with fork() and pipe lifecycle.
-struct descriptor {
-  int fd;
-  enum { invalid = -1 };
-  descriptor(int _fd = invalid) : fd(_fd) {}
-  
-  void close() { //TODO: make nothrow - otherwise it cannot by used in RAII
-    if(fd==invalid) return;
-    if(::close(fd)==-1){} // error("%",strerror(errno));
-    fd = invalid;
-  }
-};
-
-struct pipe {
-  descriptor in,out;
-  
-  // blocking until all is written
-  void write(const str &data) {
-    auto b = &data[0];
-    auto e = b+data.size();
-    ssize_t s = ::write(in.fd,b,e-b);
-    if(s==-1) error("write(): %",strerror(errno));
-    if(s!=e-b) error("wrote %/% bytes",s,e-b);
-  }
-  // blocking until some data available
-  str read() {
-    vec<char> data(PIPE_BUF);
-    ssize_t s = ::read(out.fd,&data[0],data.size());
-    if(s==-1){
-      if(errno==EPIPE) {
-        info("reading closed pipe");
-        return "";
-      }
-      error("read(): %",strerror(errno));
-    }
-    return str(&data[0],&data[s]);
-  }
-
-  void close() {
-    in.close();
-    out.close();
-  }
-};
-
-static pipe new_pipe() {
-  int f[2];
-  if(::pipe(f)==-1) error("pipe(): %",strerror(errno));
-  pipe p;
-  p.in.fd = f[1]; p.out.fd = f[0];
-  return p;
-}
-
-static str subprocess(Ctx::Ptr ctx, vec<str> cmd, str input) {
-  pipe parent_child = new_pipe();
-  pipe child_parent = new_pipe();
+static Error<>::Or<str> subprocess(Ctx::Ptr ctx, const vec<str> &cmd, const str &input) {
+  auto [parent_child,pc_err] = Pipe::New();
+  if(pc_err) return Err::Wrap(err,"Pipe::New()");
+  auto [child_parent,cp_err] = Pipe::New();
+  if(cp_err) return Err::Wrap(err,"Pipe::New()");
   pid_t pid = fork();
-  if(pid==-1) error("fork(): %",strerror(errno));
+  if(pid==-1) return Err::New("fork(): %",strerror(errno));
   if(pid==0) { // child
     // redirect stdin and stdout (stderr is propagated)
     if(dup2(parent_child.out.fd,0)==-1) error("dup2(): %",strerror(errno));
@@ -110,15 +60,14 @@ static str subprocess(Ctx::Ptr ctx, vec<str> cmd, str input) {
     return output;
   });
   // wait for subprocess asynchronously.
-  Ctx::Cancel cancel;
-  std::tie(ctx,cancel) = Ctx::with_cancel(ctx);
-  auto tdone = std::async(std::launch::async,[cancel,pid]{
+  ctx = ctx.with_cancel();
+  auto tdone = std::async(std::launch::async,[ctx,pid]{
     int status;
     if(waitpid(pid,&status,0)==-1) error("waitpid(%): %",pid,strerror(errno));
     info("subprocess terminated");
     if(WIFEXITED(status)) {
       if(auto s = WEXITSTATUS(status); s==EXIT_SUCCESS) {  
-        cancel();
+        ctx.cancel();
         return;
       } else {
         error("WEXITSTATUS() = %",s);
@@ -130,7 +79,7 @@ static str subprocess(Ctx::Ptr ctx, vec<str> cmd, str input) {
     }
   });
   // wait for the context to finish.
-  ctx->wait();
+  ctx.poll();
   info("ctx terminated");
   // kill the subprocess if still running.
   if(waitpid(pid,0,WNOHANG)==0) {

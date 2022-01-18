@@ -7,7 +7,6 @@ cc_binary(
     srcs = ["limit.cc"],
     deps = [":utils"],
     features = ["fully_static_link"],
-    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -41,10 +40,23 @@ cc_test(
 
 cc_library(
     name = "ctx",
-    hdrs = ["ctx.h"],
+    hdrs = [
+      "ctx.h",
+      "group.h",
+    ],
     deps = [
       ":utils",
+      "//gprusak/sys:raw",
       "@abseil//absl/time:time",
+    ],
+)
+
+cc_test(
+    name = "ctx_test",
+    srcs = ["ctx_test.cc"],
+    deps = [
+        ":ctx",
+        "@gtest//:gtest_main",
     ],
 )
 
@@ -61,15 +73,6 @@ cc_library(
 cc_library(
     name = "number_theory",
     hdrs = ["number_theory.h"],
-)
-
-cc_library(
-  name = "sys",
-  hdrs = ["sys.h"],
-  deps = [
-    ":utils",
-    ":ctx",
-  ],
 )
 
 cc_test(
