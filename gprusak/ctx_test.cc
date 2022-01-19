@@ -1,5 +1,8 @@
 #include "gtest/gtest.h"
 
+#define DEBUG_MODE
+#define VERBOSE
+
 #include <iostream>
 
 #include "gprusak/ctx.h"
@@ -22,7 +25,7 @@ TEST(ctx,group) {
   auto ctx = Ctx::background().with_deadline(absl::UnixEpoch());
   auto err = Group::Run(ctx,[](Ctx ctx, Group &g) -> Error<> {
     g.spawn([&](Ctx ctx) -> Error<> {
-      return Err::New("rollo");
+      return {};
     });
     return {}; 
   });

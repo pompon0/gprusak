@@ -45,6 +45,7 @@ struct ErrGeneric {
   virtual str show() const = 0;
   virtual std::shared_ptr<const ErrGeneric> cause() const { return 0; }
 protected:
+  template<typename> friend struct Error;
   template<typename ET> INL static Error<ET> New(ET *p) { return std::shared_ptr<const ET>(p); }
   template<typename ET> INL static std::shared_ptr<const ET> raw(Error<ET> err) { return err.err; }
 };
@@ -74,6 +75,9 @@ template<typename ET = ErrGeneric> struct [[nodiscard]] Error {
     T val;
     Error err;
   };
+
+  template<typename ...Args> INL Error<> wrap(const str &fmt, Args ...args);
+
 private:
   INL Error(std::shared_ptr<const ET> _err) : err(_err) {}
   std::shared_ptr<const ET> err;
@@ -84,21 +88,25 @@ template<typename ET> struct ErrText : ErrGeneric {
     auto p = new ET();
     p->msg = gprusak::fmt(fmt,args...);
     return ErrGeneric::New(p);
-  }
-  template<typename ...Args> INL static Error<ET> Wrap(Error<> _cause, const str &fmt, Args ...args) {
-    auto p = new ET();
-    p->msg = gprusak::fmt(fmt,args...);
-    p->cause_ = raw(_cause);
-    return ErrGeneric::New(p);
-  }
+  } 
   str show() const { return cause_ ? gprusak::fmt("% : %",msg,cause_->show()) : msg; }
   std::shared_ptr<const ErrGeneric> cause() const { return cause_; }
 private:
+  template<typename> friend struct Error;
   str msg;
   std::shared_ptr<const ErrGeneric> cause_;
 };
 
 struct Err : ErrText<Err> {};
+
+template<typename ET>
+template<typename ...Args> INL Error<> Error<ET>::wrap(const str &fmt, Args ...args) {
+  if(!err) return {};
+  auto p = new Err;
+  p->msg = gprusak::fmt(fmt,args...);
+  p->cause_ = err;
+  return ErrGeneric::New(p);
+}
 
 }  // namespace gprusak
 

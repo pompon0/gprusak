@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include <optional>
+#include <functional>
 
 #define INL [[gnu::always_inline]]
 #define INLL __attribute__((always_inline))
@@ -17,11 +18,13 @@ using u8 = uint8_t;
 using u64 = uint64_t;
 using s64 = int64_t;
 template<typename T> using vec = std::vector<T>;
+template<typename T> using func = std::function<T>;
 template<typename T> using ptr = std::unique_ptr<T>;
 template<typename T> INL static ptr<T> own(T *v){ return ptr<T>(v); }
 using str = std::string;
 using str32 = std::u32string;
 using std::swap;
+
 
 using Byte = uint8_t;
 using Bytes = vec<Byte>;

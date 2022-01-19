@@ -12,48 +12,45 @@ struct Group {
 private:
   using Lock = std::lock_guard<std::mutex>; 
 
-public:
-  template<typename F> INL void spawn(F f) {
-    static_assert(has_sig<F,Error<>(Ctx)>);
+  INL void collect(Error<> x) { FRAME("Group::collect()");
     Lock l(mtx);
-    auto id = task_count++;
-    tasks[id] = std::async(std::launch::async,[this,id,f]()INLL{
-      if(auto f_err = f(Ctx(ctx))) {
-        Lock l(mtx);
-        tasks.erase(id);
-        if(!err) {
-          ctx.cancel();
-          err = f_err;
-        }
-      }
-    }).share();
+    // WARNING: A task is not allowed to remove its future!
+    if(!x || err) return;
+    ctx.cancel();
+    err = x;
   }
 
-  template<typename F> static Error<> Run(Ctx ctx, F f) {
+public:
+  template<typename F> INL void spawn(F f) { FRAME("Group::spawn");
+    static_assert(has_sig<F,Error<>(Ctx)>);
+    Lock l(mtx);
+    tasks.push_back(std::async(std::launch::async,[this,f]()INLL{ collect(f(ctx)); }));
+  }
+
+  template<typename F> static Error<> Run(Ctx ctx, F f) { FRAME("Group::Run");
     static_assert(has_sig<F,Error<>(Ctx,Group&)>);
     Group g(ctx);
-    g.spawn([&g,f](Ctx ctx)INLL{ return f(ctx,g); });
+    g.collect(f(g.ctx,g));
     while(auto t = g.pop_task()) t->wait();
     return g.err;
   };
 
 private:
-  opt<std::shared_future<void>> pop_task() {
+  opt<std::shared_future<void>> pop_task() { FRAME("Group::pop_task()");
     Lock l(mtx);
     if(!tasks.size()) return nil;
-    auto it = tasks.begin();
-    auto res = it->second;
-    tasks.erase(it);
-    return res;
+    auto f = std::move(tasks.back());
+    tasks.pop_back();
+    return f;
   }
 
   Group(const Ctx &_ctx) : ctx(_ctx.with_cancel()) {}
   Group(const Group&) = delete;
 
+  // TODO: add task id to the context to improve logging.
   CancellableCtx ctx;
   std::mutex mtx;
-  std::map<size_t,std::shared_future<void>> tasks;
-  size_t task_count = 0;
+  vec<std::future<void>> tasks;
   Error<> err;
 };
 
