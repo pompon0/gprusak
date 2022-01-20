@@ -9,11 +9,8 @@
 namespace gprusak {
 
 struct Group {
-private:
-  using Lock = std::lock_guard<std::mutex>; 
-
   INL void collect(Error<> x) { FRAME("Group::collect()");
-    Lock l(mtx);
+    auto l = lock(mtx);
     // WARNING: A task is not allowed to remove its future!
     if(!x || err) return;
     ctx.cancel();
@@ -23,7 +20,7 @@ private:
 public:
   template<typename F> INL void spawn(F f) { FRAME("Group::spawn");
     static_assert(has_sig<F,Error<>(Ctx)>);
-    Lock l(mtx);
+    auto l = lock(mtx);
     tasks.push_back(std::async(std::launch::async,[this,f]()INLL{ collect(f(ctx)); }));
   }
 
@@ -37,7 +34,7 @@ public:
 
 private:
   opt<std::shared_future<void>> pop_task() { FRAME("Group::pop_task()");
-    Lock l(mtx);
+    auto l = lock(mtx);
     if(!tasks.size()) return nil;
     auto f = std::move(tasks.back());
     tasks.pop_back();

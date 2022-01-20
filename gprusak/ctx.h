@@ -39,6 +39,7 @@ private:
     children.erase(child);
   }
 public:
+  INL inline absl::Time now() const { return absl::Now(); }
   INL opt<absl::Time> get_deadline() const { return deadline; }
   INL Error<>::Or<sys::Descriptor> poll(vec<sys::Descriptor> fds) const {
     // find cancel_fd
@@ -51,9 +52,9 @@ public:
     return fd;
   }
   INL bool check_done() {
-    // We do it this way only to avoid UnixEpoch() if unnecessary.
+    // We do it this way only to avoid now() if unnecessary.
     { Lock L(mtx); if(cancelled) return true; }
-    if(deadline && absl::UnixEpoch()>*deadline) {
+    if(deadline && now()>*deadline) {
       cancel();
       return true;
     }
@@ -101,13 +102,20 @@ struct CancellableCtx;
 
 struct Ctx {
   INL Ctx(const Ctx&) = default;
-  INL static Ctx background(){ return Ctx(ctx_internal::Ctx::New(0,false,nil)); }
-  INL Ctx with_timeout(absl::Duration d) const { return with_deadline(absl::UnixEpoch()+d); }
-  INL Ctx with_deadline(absl::Time t) const { return Ctx(ctx_internal::Ctx::New(ptr,false,t)); }
-  INL CancellableCtx with_cancel() const;
-  INL bool done() const { return ptr->check_done(); }
-  INL opt<absl::Time> deadline() const { return ptr->get_deadline(); }
-  INL Error<>::Or<sys::Descriptor> poll(const vec<sys::Descriptor> &fds){ return ptr->poll(fds); }
+  INL inline absl::Time now() const { return ptr->now(); }
+  INL inline Error<> wait_until(absl::Time t) const {
+    if(auto d = deadline(); d && *d<=t){ auto [_,err] = poll({}); return err; }
+    if(auto [_,err] = with_deadline(t).poll({}); !err.is<ErrTimeout>()) return err;
+    return {};
+  }
+  INL inline static Ctx background(){ return Ctx(ctx_internal::Ctx::New(0,false,nil)); }
+  INL inline Ctx with_timeout(absl::Duration d) const { return with_deadline(now()+d); }
+  INL inline Ctx with_deadline(absl::Time t) const { return Ctx(ctx_internal::Ctx::New(ptr,false,t)); }
+  INL inline CancellableCtx with_cancel() const;
+  INL inline bool done() const { return ptr->check_done(); }
+  INL inline opt<absl::Time> deadline() const { return ptr->get_deadline(); }
+  INL inline Error<>::Or<sys::Descriptor> poll(const vec<sys::Descriptor> &fds) const { return ptr->poll(fds); }
+
 protected:
   INL Ctx(std::shared_ptr<ctx_internal::Ctx> &&_ptr) : ptr(_ptr) {}
   std::shared_ptr<ctx_internal::Ctx> ptr;
@@ -122,79 +130,6 @@ private:
 INL CancellableCtx Ctx::with_cancel() const {
   return CancellableCtx(ctx_internal::Ctx::New(ptr,true,nil));
 }
-
-/*
-struct Ctx {
-  using Ptr = std::shared_ptr<Ctx>;
-  using Cancel = std::function<void()>;
-  using Lock = std::lock_guard<std::mutex>; 
-  bool done() const { FRAME("done()"); return f.wait_for(std::chrono::seconds(0))==std::future_status::ready; }
-  void wait() const { FRAME("wait()"); f.wait(); } 
-  virtual ~Ctx() {
-    if(base) base->del_child(this);
-  }
-  static Ptr background(){ return Ptr(new Ctx()); }
-  static std::tuple<Ptr,Cancel> with_cancel(Ptr base) {
-    Ptr ctx(new Ctx(base));
-    return std::make_tuple(ctx,[ctx]{ ctx->cancel(); });
-  }
-  static Ptr with_timeout(Ptr base, absl::Duration timeout);
-  virtual opt<absl::Time> get_deadline() {
-    if(base) return base->get_deadline();
-    return {};
-  }
-protected:
-  Ctx(Ptr _base = 0) : base(_base) { FRAME("Ctx()");
-    f = p.get_future().share();
-    if(base) base->add_child(this);
-  }
-  void cancel() { FRAME("cancel");
-    Lock L(mtx);
-    if(done()) return;
-    p.set_value();
-    for(Ctx *child : children) child->cancel();
-  }
-  std::mutex mtx;
-  std::promise<void> p;
-  std::shared_future<void> f;
-  std::set<Ctx*> children;
-  Ptr base;
-  void add_child(Ctx *child) { FRAME("add_child");
-    Lock L(mtx);
-    children.insert(child);
-    if(done()) child->cancel();
-  }
-  void del_child(Ctx *child) {
-    FRAME("del_child");
-    Lock L(mtx);
-    children.erase(child);
-  }
-};
-
-struct CtxWithTimeout : Ctx {
-  CtxWithTimeout(Ctx::Ptr base, absl::Duration timeout) : Ctx(base), deadline(absl::Now()+timeout) {
-    timeout_task = std::async(std::launch::async,[this]{
-      f.wait_until(absl::ToChronoTime(deadline));
-      cancel();
-    });
-  }
-  virtual opt<absl::Time> get_deadline() override {
-    //TODO: fix situation when parent deadline is shorter
-    return deadline;
-  }
-  ~CtxWithTimeout() {
-    cancel();
-    timeout_task.wait();
-  }
-private:
-  absl::Time deadline;
-  std::future<void> timeout_task;
-};
-
-inline Ctx::Ptr Ctx::with_timeout(Ctx::Ptr base, absl::Duration timeout) {
-  return Ptr(new CtxWithTimeout(base,timeout));
-}
-*/
 
 }  // gprusak
 

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <poll.h>
+#include <signal.h>
 #include <cstring>
 #include <sys/eventfd.h>
 #include <compare>
@@ -35,12 +36,19 @@ struct Descriptor {
   INL static Error<>::Or<Descriptor> poll(const vec<Descriptor> &fds, opt<absl::Time> deadline/*, sigmask*/) {
     vec<::pollfd> x(fds.size());
     ::timespec t;
-    if(deadline) t = absl::ToTimespec(*deadline-absl::UnixEpoch());
+    auto n = absl::Now();
+    if(deadline) {
+      info("n - deadline = %",n-*deadline);
+      if(n>=*deadline) return ErrTimeout::New("timeout");
+      t = absl::ToTimespec(*deadline-n);
+    }
     for(size_t i=0; i<fds.size(); i++) x[i] = {
       .fd = fds[i].fd,
       .events = POLLIN,
     };
-    auto res = ::ppoll(x.data(),x.size(),deadline ? &t : 0,0);
+    sigset_t sigset;
+    sigfillset(&sigset);
+    auto res = ::ppoll(x.data(),x.size(),deadline ? &t : 0,&sigset);
     if(res==0) return ErrTimeout::New("timeout");
     if(res==-1) return Err::New("ppoll(): %",strerror(errno));
     for(size_t i=0; i<fds.size(); i++) {

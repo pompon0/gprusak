@@ -69,7 +69,7 @@ struct Frame {
 ///////////////////////////////////////////////////////////////////////
 
 /** @return timestamp in tf format */
-inline str now(str tf = "%F %T ") {
+inline str now_str(str tf = "%F %T ") {
   char B[25]; time_t t; time(&t);
   strftime(B,sizeof B,tf.c_str(),localtime(&t));
   return B;
@@ -85,7 +85,7 @@ struct StreamLogger : Logger {
   {
     switch(level)
     {
-      case INFO: os << now() << msg << std::endl; break;
+      case INFO: os << now_str() << msg << std::endl; break;
       case PUSH_FRAME: stack.push_back(msg); break;
       case POP_FRAME: stack.pop_back(); break;
       case ERROR:
@@ -104,13 +104,13 @@ struct FileLogger : Logger {
 
   /** @param filename - output file path */
   void open(const char *filename)
-  { close(); file.open(filename,std::ios::app); file << now() << " == START == " << std::endl; }
-  void close(){ file << now() << " == STOP == " << std::endl; file.close(); }
+  { close(); file.open(filename,std::ios::app); file << now_str() << " == START == " << std::endl; }
+  void close(){ file << now_str() << " == STOP == " << std::endl; file.close(); }
   void log(int level, str msg)
   {
     switch(level)
     {
-      case INFO: file << now() << msg << std::endl; break;
+      case INFO: file << now_str() << msg << std::endl; break;
       case PUSH_FRAME: stack.push_back(msg); break;
       case POP_FRAME: stack.pop_back(); break;
       case ERROR:

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <optional>
 #include <functional>
+#include <mutex>
 
 #define INL [[gnu::always_inline]]
 #define INLL __attribute__((always_inline))
@@ -51,6 +52,8 @@ template<typename F, typename Ret, typename ...Args> struct _sig<Ret(F::*)(Args.
 
 template<typename F> using sig = typename _sig<F>::value;
 template<typename F, typename Sig> constexpr bool has_sig = std::is_same<sig<F>,Sig>::value;
+
+template<typename M> INL auto lock(M &m){ return std::lock_guard<M>(m); }
 
 } // namespace gprusak::types
 
