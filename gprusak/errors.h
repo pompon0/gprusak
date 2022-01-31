@@ -100,7 +100,7 @@ private:
 struct Err : ErrText<Err> {};
 
 template<typename ET>
-template<typename ...Args> INL Error<> Error<ET>::wrap(const str &fmt, Args ...args) {
+template<typename ...Args> INL inline Error<> Error<ET>::wrap(const str &fmt, Args ...args) {
   if(!err) return {};
   auto p = new Err;
   p->msg = gprusak::fmt(fmt,args...);

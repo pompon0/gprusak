@@ -10,7 +10,7 @@ template<typename T> struct _lex {
   INL static auto cmp(const T &a, const T &b){ return a<=>b; }
 };
 
-template<typename T> INL static auto lex(const T &a, const T &b){ return _lex<T>::cmp(a,b); }
+template<typename T> INL inline static auto lex(const T &a, const T &b){ return _lex<T>::cmp(a,b); }
 
 template<> struct _lex<str> {
   INL static auto cmp(const str &a, const str &b){ return a.compare(b) <=> 0; }

@@ -37,6 +37,7 @@ template<typename T> INL inline str to_str(const T &v)
 
 template<> INL inline str to_str(const int8_t &v){ return to_str(int16_t(v)); }
 template<> INL inline str to_str(const uint8_t &v){ return to_str(int16_t(v)); }
+template<> INL inline str to_str(const char32_t &v){ return to_str(uint32_t(v)); }
 
 template<typename ...Args> str fmt(const str &format_str, Args ...args)
 {

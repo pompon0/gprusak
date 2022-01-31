@@ -72,7 +72,7 @@ struct Pipe {
   Error<> write(const Bytes &data) {
     ssize_t s = ::write(in.fd,data.data(),data.size());
     if(s==-1) return Err::New("write(): %",strerror(errno));
-    if(s!=data.size()) return Err::New("wrote %/% bytes",s,data.size());
+    if(s!=ssize_t(data.size())) return Err::New("wrote %/% bytes",s,data.size());
     return {};
   }
 
