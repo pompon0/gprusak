@@ -5,12 +5,32 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <cstring>
+#include <future>
 
 #include "gprusak/log.h"
 #include "gprusak/ctx.h"
 #include "gprusak/sys/raw.h"
 
 namespace gprusak::sys {
+
+static Error<> spawn(const vec<str> &cmd) {
+  pid_t pid = fork();
+  if(pid==-1) return Err::New("fork(): %",strerror(errno));
+  if(pid==0) { // child
+    // execute
+    vec<vec<char>> args;
+    vec<char*> argv;
+    for(size_t i=0; i<cmd.size(); i++){
+      args.emplace_back(cmd[i].begin(),cmd[i].end());
+      args.back().push_back(0);
+      argv.push_back(&args.back()[0]);
+    }
+    argv.push_back(0);
+    if(::execv(&argv[0][0],&argv[0])==-1) error("execv(): %",strerror(errno));
+    error("execv() returned");
+  }
+  return {};
+}
 
 static Error<>::Or<str> subprocess(Ctx _ctx, const vec<str> &cmd, const str &input) {
   auto [parent_child,pc_err] = Pipe::New();
